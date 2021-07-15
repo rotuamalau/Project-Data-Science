@@ -1,0 +1,78 @@
+# Langkah-langkah yang akan dilakukan adalah:
+# 1. Melakukan eksplorasi data dengan teknik statistika deskriptif.
+# 2. Membagi dataset menjadi training set dan testing set.
+# 3. Menerapkan Principal Component Analysis.
+# 4. Memilih banyaknya principal component.
+# 5. Visualisasi output.
+
+# Panggil library openxlsx untuk membaca file data Excel
+library(openxlsx)
+csdat_raw <- read.xlsx("https://storage.googleapis.com/dqlab-dataset/dqlab_pcadata.xlsx", sheet = "csdata")
+
+# Menampilkan struktur data
+str(csdat_raw)
+
+# Menampilkan beberapa baris observasi dengan fungsi head()
+head(csdat_raw)
+
+# Menampilkan statistika deskriptif
+summary(csdat_raw)
+
+# Menggambarkan distribusi Income(Pendapatan) dan Dependent(Jumlah tanggungan)
+library(ggplot2)
+ggplot(csdat_raw, aes(as.factor(dependents),income)) + geom_boxplot() + xlab("Dependents") +
+  ggtitle("Boxplot Income Berdasarkan Dependents")
+
+# Split data: Training set dan Testing set (Stratified sampling dengan 80% dari tiap risk rating)
+# mencatat indeks/nomor baris untuk tiap riskrating
+index1 <- which(csdat_raw$riskrating == 1)
+index2 <- which(csdat_raw$riskrating == 2)
+index3 <- which(csdat_raw$riskrating == 3)
+index4 <- which(csdat_raw$riskrating == 4)
+index5 <- which(csdat_raw$riskrating == 5)
+
+# 80% data akan digunakan sebagai training set
+ntrain1 <- round(0.8*length(index1))
+ntrain2 <- round(0.8*length(index2))
+ntrain3 <- round(0.8*length(index3))
+ntrain4 <- round(0.8*length(index4))
+ntrain5 <- round(0.8*length(index5))
+
+# menampilkan set.seed(100)
+set.seed(100)
+
+# menampilkan sampling data masing-masing rating untuk training set
+train1_index <- sample(index1, ntrain1)
+train2_index <- sample(index2, ntrain2)
+train3_index <- sample(index3, ntrain3)
+train4_index <- sample(index4, ntrain4)
+train5_index <- sample(index5, ntrain5)
+
+#Menggabungkan hasil sampling masing-masing rating ke dalam training set.
+csdattrain <- do.call("rbind", list(csdat_raw[train1_index,], csdat_raw[train2_index,], csdat_raw[train3_index,],
+                                    csdat_raw[train4_index,], csdat_raw[train5_index,]))
+cstrain <- subset(csdattrain, select = -c(contractcode,riskrating))
+
+# Menghitung korelasi antar variable
+cor(cstrain)
+
+# Melakukan analisa PCA dengan fungsi prcomp()
+pr.out <- prcomp(cstrain, scale. = TRUE, center = TRUE)
+pr.out
+summary(pr.out)
+
+# Visualisasi Output
+screeplot(pr.out, type = "line", ylim = c(0,2))
+#Menambahkan garis horizontal dengan kriteria Kaiser
+abline(h = 1, lty = 3, col = "red")
+
+# Menampilkan biplot
+biplot(pr.out, scale = 0)
+
+# Menampilkan dengan ggfortify
+library(ggfortify)
+autoplot(pr.out, data = csdattrain, loadings = TRUE, loadings.label = TRUE, scale = 0)
+
+# Menampilkan dengan fviz_pca_biplot 
+library(factoextra)
+fviz_pca_biplot(pr.out, label = "var", habillage = csdattrain$riskrating)
